@@ -33,7 +33,8 @@ class COLA(Constraint):
     def __init__(
         self,
         max_diff,
-        model_name="textattack/bert-base-uncased-CoLA",
+        model_name="textattack/bert-base-uncased-CoLA", # iproskurina/tda-ruroberta-large-ru-cola or iproskurina/tda-rubert-ru-cola
+        language="eng", 
         compare_against_original=True,
     ):
         super().__init__(compare_against_original)
@@ -44,6 +45,7 @@ class COLA(Constraint):
 
         self.max_diff = max_diff
         self.model_name = model_name
+        self.language = language
         self._reference_score_cache = lru.LRU(2**10)
         model = AutoModelForSequenceClassification.from_pretrained(model_name)
         tokenizer = AutoTokenizer.from_pretrained(model_name)
@@ -55,12 +57,12 @@ class COLA(Constraint):
     def _check_constraint(self, transformed_text, reference_text):
         if reference_text not in self._reference_score_cache:
             # Split the text into sentences before predicting validity
-            reference_sentences = nltk.sent_tokenize(reference_text.text)
+            reference_sentences = nltk.sent_tokenize(reference_text.text, language=self.language)
             # A label of 1 indicates the sentence is valid
             num_valid = self.model(reference_sentences).argmax(axis=1).sum()
             self._reference_score_cache[reference_text] = num_valid
 
-        sentences = nltk.sent_tokenize(transformed_text.text)
+        sentences = nltk.sent_tokenize(transformed_text.text, language=self.language)
         predictions = self.model(sentences)
         num_valid = predictions.argmax(axis=1).sum()
         reference_score = self._reference_score_cache[reference_text]
